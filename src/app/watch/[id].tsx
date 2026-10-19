@@ -41,10 +41,13 @@ export default function WatchScreen() {
     if (e && series) setProgress(series.id, e.number);
   }, [activeIndex, episodes, series, setProgress]);
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: { isViewable: boolean; index?: number | null }[] }) => {
-    const first = viewableItems.find((v) => v.isViewable);
-    if (first && typeof first.index === 'number') setActiveIndex(first.index);
-  }).current;
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { isViewable: boolean; index?: number | null }[] }) => {
+      const first = viewableItems.find((v) => v.isViewable);
+      if (first && typeof first.index === 'number') setActiveIndex(first.index);
+    },
+    [],
+  );
 
   const openUnlock = useCallback(
     (e: Episode) => {

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEvent, useEventListener } from 'expo';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -43,17 +43,17 @@ function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, 
     currentOffsetFromLive: null,
   });
   const [ended, setEnded] = useState(false);
+  // Reset "ended" when the card scrolls out, so it replays from the start next time.
+  const [wasActive, setWasActive] = useState(active);
+  if (active !== wasActive) {
+    setWasActive(active);
+    if (!active) setEnded(false);
+  }
 
   useEffect(() => {
     if (!source) return;
-    if (active) {
-      if (ended) return;
-      player.play();
-    } else {
-      player.pause();
-      player.currentTime = 0;
-      setEnded(false);
-    }
+    if (active && !ended) player.play();
+    if (!active) rewind(player);
   }, [active, ended, player, source]);
 
   useEventListener(player, 'playToEnd', () => {
@@ -87,7 +87,8 @@ function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, 
         style={StyleSheet.absoluteFill}
         onPress={() => {
           if (!source || ended) return;
-          isPlaying ? player.pause() : player.play();
+          if (isPlaying) player.pause();
+          else player.play();
         }}
         accessibilityRole="button"
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
@@ -171,6 +172,11 @@ function RailButton({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; lab
       </Text>
     </View>
   );
+}
+
+function rewind(player: VideoPlayer) {
+  player.pause();
+  player.currentTime = 0;
 }
 
 function compact(n: number) {

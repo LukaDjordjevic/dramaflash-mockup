@@ -21,14 +21,20 @@ export default function HomeScreen() {
   const spotlight = catalogue.spotlight();
 
   const rails = useMemo(() => {
-    return catalogue.rails().map((rail) => {
-      const items = catalogue.railSeries(rail);
-      const filtered = chip === 'All' ? items : items.filter((s) => s.genres.includes(chip as Genre));
-      return { rail, items: filtered };
-    });
+    const visible = catalogue
+      .rails()
+      .map((rail) => {
+        const items = catalogue.railSeries(rail);
+        const filtered = chip === 'All' ? items : items.filter((s) => s.genres.includes(chip as Genre));
+        return { rail, items: filtered };
+      })
+      .filter(({ items }) => items.length > 0);
+    // A section heading goes above the first rail of each section.
+    return visible.map((entry, i) => ({
+      ...entry,
+      showSection: !!entry.rail.section && entry.rail.section !== visible[i - 1]?.rail.section,
+    }));
   }, [chip]);
-
-  let lastSection: string | undefined;
 
   return (
     <View style={styles.screen}>
@@ -37,17 +43,12 @@ export default function HomeScreen() {
         <View style={styles.chips}>
           <GenreChips items={genreChips} value={chip} onChange={setChip} />
         </View>
-        {rails.map(({ rail, items }) => {
-          if (items.length === 0) return null;
-          const showSection = rail.section && rail.section !== lastSection;
-          lastSection = rail.section;
-          return (
-            <View key={rail.id}>
-              {showSection ? <SectionTitle title={rail.section!} /> : null}
-              <Rail title={rail.title} items={items} />
-            </View>
-          );
-        })}
+        {rails.map(({ rail, items, showSection }) => (
+          <View key={rail.id}>
+            {showSection && rail.section ? <SectionTitle title={rail.section} /> : null}
+            <Rail title={rail.title} items={items} />
+          </View>
+        ))}
       </ScrollView>
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
         <View style={styles.logo}>
