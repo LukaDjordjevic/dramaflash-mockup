@@ -45,13 +45,15 @@ const thumbs = [
   require('../../assets/thumbs/ep6.jpg'),
 ];
 
-// Bundled clips. Three free episodes have real video; the locked ones show art.
-// Replaced in session 2 with the trimmed Pexels clips (see CREDITS.md).
-const clips: Record<number, number | undefined> = {
-  1: undefined,
-  2: undefined,
-  3: undefined,
-};
+// Bundled clips (Pexels, see CREDITS.md). The three free episodes have real
+// video; locked episodes show key art until unlocked, then play a clip too.
+export const clips = [
+  require('../../assets/clips/ep1.mp4'),
+  require('../../assets/clips/ep2.mp4'),
+  require('../../assets/clips/ep3.mp4'),
+  require('../../assets/clips/ep4.mp4'),
+] as const;
+export const clipDurations = [23, 13, 8, 10] as const;
 
 const billionaireEpisodes: Episode[] = [
   {
@@ -59,10 +61,10 @@ const billionaireEpisodes: Episode[] = [
     seriesId: 'billionaires-secret',
     number: 1,
     title: 'Unmasking the Truth',
-    durationSec: 105,
+    durationSec: clipDurations[0],
     thumb: thumbs[0],
     art: posters.billionaireEp1,
-    clip: clips[1],
+    clip: clips[0],
     likes: 12_000,
     comments: 342,
   },
@@ -71,10 +73,10 @@ const billionaireEpisodes: Episode[] = [
     seriesId: 'billionaires-secret',
     number: 2,
     title: 'The Confidential File',
-    durationSec: 118,
+    durationSec: clipDurations[1],
     thumb: thumbs[1],
     art: posters.billionaireEp1,
-    clip: clips[2],
+    clip: clips[1],
     likes: 11_400,
     comments: 298,
   },
@@ -83,10 +85,10 @@ const billionaireEpisodes: Episode[] = [
     seriesId: 'billionaires-secret',
     number: 3,
     title: 'The Last Will',
-    durationSec: 124,
+    durationSec: clipDurations[2],
     thumb: thumbs[2],
     art: posters.billionaireEp5,
-    clip: clips[3],
+    clip: clips[2],
     likes: 13_100,
     comments: 410,
   },
@@ -95,9 +97,10 @@ const billionaireEpisodes: Episode[] = [
     seriesId: 'billionaires-secret',
     number: 4,
     title: 'Behind the Gates',
-    durationSec: 130,
+    durationSec: clipDurations[3],
     thumb: thumbs[3],
     art: posters.billionaireEp5,
+    clip: clips[3],
     likes: 12_000,
     comments: 342,
   },
@@ -106,9 +109,10 @@ const billionaireEpisodes: Episode[] = [
     seriesId: 'billionaires-secret',
     number: 5,
     title: 'The Key',
-    durationSec: 130,
+    durationSec: clipDurations[0],
     thumb: thumbs[4],
     art: posters.billionaireEp5,
+    clip: clips[0],
     likes: 12_000,
     comments: 342,
   },
@@ -117,9 +121,10 @@ const billionaireEpisodes: Episode[] = [
     seriesId: 'billionaires-secret',
     number: 6,
     title: "The Locket's Clue",
-    durationSec: 115,
+    durationSec: clipDurations[1],
     thumb: thumbs[5],
     art: posters.billionaireEp6,
+    clip: clips[1],
     likes: 12_000,
     comments: 342,
   },

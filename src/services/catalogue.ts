@@ -1,6 +1,6 @@
 // Catalogue service. The mock reads fixtures; the real app would call the
 // TargetVideo CMS. Keep the surface small so the swap is one file.
-import { librarySaved, rails, series, spotlightId } from '@/data/catalogue';
+import { clipDurations, clips, librarySaved, rails, series, spotlightId } from '@/data/catalogue';
 import type { Episode, Rail, Series } from '@/data/types';
 
 const byId = new Map(series.map((s) => [s.id, s]));
@@ -32,9 +32,10 @@ export const catalogue = {
       seriesId: s.id,
       number: i + 1,
       title: `Episode ${i + 1}`,
-      durationSec: Math.round(s.minutesPerEpisode * 60),
+      durationSec: clipDurations[(i + 3) % clips.length],
       thumb: s.poster,
       art: s.keyArt ?? s.poster,
+      clip: clips[(i + 3) % clips.length],
       likes: 8_000 + i * 310,
       comments: 120 + i * 17,
     }));
