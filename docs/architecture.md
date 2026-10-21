@@ -47,10 +47,11 @@ files: this one and `components/EpisodeCard.tsx`.
   both "next episode is free" and "next episode was locked and has just been
   unlocked while sitting on the last frame". If the next episode is locked,
   the card renders `LockCard` with `emphasis` (slide-in) instead.
-- The poster `Image` under the `VideoView` is removed once `onFirstFrameRender`
-  fires. It is a placeholder, and it is what flashed on the way back to series
-  detail: the native stack snapshots the outgoing screen for the fade, the
-  video layer is not captured, and the poster behind it showed for a frame.
+- Nothing is drawn under a playing card's `VideoView`; the card is black until
+  the first frame. A poster placeholder was tried and removed twice over: it
+  showed for a beat before the first frame on Android, and on iOS it is what
+  the native stack's exit snapshot reveals (the snapshot does not capture the
+  video layer). Locked cards still show the episode art, dimmed.
 - `ended` resets when the card goes inactive, via the derive-during-render
   pattern (`wasActive` state), so swiping back replays from the start.
 - Progress bar: `timeUpdateEventInterval = 0.25` re-renders the card four
@@ -58,7 +59,9 @@ files: this one and `components/EpisodeCard.tsx`.
   Reanimated shared value and memoise the chrome.
 
 `app/watch/[id].tsx` is the paged `FlatList`: `pagingEnabled`, `getItemLayout`
-with the window height, `onViewableItemsChanged` at 60 % visibility sets
+with the list's **measured** height (`onLayout` on the wrapper, not
+`useWindowDimensions` — on Android the window includes system-bar area the
+list does not cover, and window-sized cards drift by a bar height per swipe), `onViewableItemsChanged` at 60 % visibility sets
 `activeIndex`, `windowSize={3}` so roughly three cards (and three players)
 exist at once. The neighbour card's player opens its bundled clip on mount,
 which is why a swipe starts instantly; there is no explicit preload API in

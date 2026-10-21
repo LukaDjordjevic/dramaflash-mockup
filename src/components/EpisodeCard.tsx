@@ -46,10 +46,6 @@ function PlayingEpisode({ series, episode, index, height, active, nextLocked, on
     currentOffsetFromLive: null,
   });
   const [ended, setEnded] = useState(false);
-  // Once the video has drawn a frame the poster underneath is dead weight — and it
-  // is what flashes when the native stack snapshots this screen on the way out
-  // (the video layer is not captured by the snapshot, the poster behind it is).
-  const [hasFrame, setHasFrame] = useState(false);
   // Reset "ended" when the card scrolls out, so it replays from the start next time.
   const [wasActive, setWasActive] = useState(active);
   if (active !== wasActive) {
@@ -76,7 +72,9 @@ function PlayingEpisode({ series, episode, index, height, active, nextLocked, on
 
   return (
     <View style={[styles.card, { height }]}>
-      {hasFrame ? null : <Image source={episode.art} style={StyleSheet.absoluteFill} contentFit="cover" />}
+      {/* Nothing under the video: a poster showed for a beat before the first frame on
+          Android, and it is what the native stack's exit snapshot reveals on iOS. Black
+          until the first frame is the honest state. */}
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
@@ -86,7 +84,6 @@ function PlayingEpisode({ series, episode, index, height, active, nextLocked, on
         // Android: a SurfaceView ignores the card's clipping, so a cover-scaled 9:16
         // video wraps its overflow to the bottom of the card. TextureView clips correctly.
         surfaceType="textureView"
-        onFirstFrameRender={() => setHasFrame(true)}
       />
       <Pressable
         style={StyleSheet.absoluteFill}

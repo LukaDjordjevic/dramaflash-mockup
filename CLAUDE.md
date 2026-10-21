@@ -105,9 +105,12 @@ and do not remove them — they are the design.
   (wrap in a helper), `setState` inside effects (derive during render),
   `useRef(...).current` read during render (use `useCallback`), and a
   variable reassigned inside a `useMemo` callback.
-- Anything drawn under a `VideoView` shows for a frame when the screen is
-  popped (the stack snapshot does not include the video layer). Keep the layer
-  under a playing video empty once it has a frame.
+- Keep the layer under a playing `VideoView` empty. A poster there shows for a
+  beat before the first frame on Android, and on iOS it is what the exit
+  snapshot reveals (the snapshot does not include the video layer).
+- Full-screen paged lists size their cards from the list's measured height
+  (`onLayout`), never from `useWindowDimensions().height`. On Android the two
+  differ by the system bars and paging drifts by that much per swipe.
 - Android: `VideoView` must stay on `surfaceType="textureView"`. The default
   SurfaceView ignores the card's `overflow: hidden`, and a cover-scaled 9:16
   clip shows its top band at the bottom of the card. Seen on a device.
