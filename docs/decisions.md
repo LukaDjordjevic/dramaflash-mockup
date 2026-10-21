@@ -14,10 +14,13 @@ inside Expo.
 `expo-video` wraps AVPlayer / ExoPlayer, plays HLS on both platforms, and has
 a hook API that fits a feed. The mock-up does no explicit preloading: the
 neighbour card's player opens its clip on mount because the list window is
-three cards wide. Reversed by: Widevine / FairPlay or Google IMA ads
-(→ `react-native-video`), or a mobile SDK from TargetVideo's own player
-platform (→ thin native module). Either swap touches `services/playback.ts`
-and `components/EpisodeCard.tsx` only.
+three cards wide. DRM is not a reason to switch: expo-video takes a `drm`
+source option (Widevine, PlayReady, ClearKey on Android; FairPlay on iOS).
+Reversed by: client-side ad insertion with the Google IMA SDK, which
+`react-native-video` has built in and expo-video does not — unless ads are
+stitched server-side, in which case any HLS player plays them; or a mobile SDK
+from TargetVideo's own player platform (→ thin native module). Either swap
+touches `services/playback.ts` and `components/EpisodeCard.tsx` only.
 
 ## 3. Fixtures and service interfaces, no backend
 
