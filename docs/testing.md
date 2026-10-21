@@ -71,5 +71,6 @@ Screenshot: `xcrun simctl io booted screenshot out.png`.
 ## Known limits
 
 - Wallet state is in memory; a reload resets coins to 15 and locks everything.
-- Android: run on a phone via Expo Go. If a video view renders out of bounds
-  during the page transition, set `surfaceType="textureView"` on `VideoView`.
+- Android: tested on a phone via Expo Go (2026-10-21). The one Android-only
+  defect found — the video's top band drawn at the bottom of the card — was the
+  SurfaceView clipping issue; `VideoView` now uses `surfaceType="textureView"`.

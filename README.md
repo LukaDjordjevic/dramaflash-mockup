@@ -71,4 +71,3 @@ Pexels-licensed. Details in `CREDITS.md`.
 - Rewarded-ad unlock path once the ad SDK is chosen.
 - Real HLS sources from the player platform; measure start-up time per episode.
 - Persist wallet and progress; StoreKit / Play Billing with server receipts.
-- Android pass on a real device (the simulator run was iOS).

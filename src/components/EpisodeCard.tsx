@@ -83,6 +83,9 @@ function PlayingEpisode({ series, episode, index, height, active, nextLocked, on
         contentFit="cover"
         nativeControls={false}
         allowsPictureInPicture={false}
+        // Android: a SurfaceView ignores the card's clipping, so a cover-scaled 9:16
+        // video wraps its overflow to the bottom of the card. TextureView clips correctly.
+        surfaceType="textureView"
         onFirstFrameRender={() => setHasFrame(true)}
       />
       <Pressable

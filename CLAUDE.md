@@ -108,6 +108,11 @@ and do not remove them — they are the design.
 - Anything drawn under a `VideoView` shows for a frame when the screen is
   popped (the stack snapshot does not include the video layer). Keep the layer
   under a playing video empty once it has a frame.
+- Android: `VideoView` must stay on `surfaceType="textureView"`. The default
+  SurfaceView ignores the card's `overflow: hidden`, and a cover-scaled 9:16
+  clip shows its top band at the bottom of the card. Seen on a device.
+- Expo Go from the Play Store can lag the SDK; the matching APK is on
+  github.com/expo/expo-go-releases.
 - A Fast Refresh after editing a route file once threw "Cannot find native
   module 'ExpoAsset'" in Expo Go. Cold-restart the app; it is not a code bug.
 
