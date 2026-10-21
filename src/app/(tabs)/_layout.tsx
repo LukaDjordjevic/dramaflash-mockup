@@ -6,15 +6,18 @@ import { colors, fonts } from '@/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
+// Tabs hands the icon a ColorValue; Ionicons wants a string. Tints are set as hex strings above, so narrow once here.
 function TabIcon({ name, color, size }: { name: IconName; color: ColorValue; size: number }) {
-  return <Ionicons name={name} size={size} color={typeof color === 'string' ? color : undefined} />;
+  return <Ionicons name={name} size={size} color={typeof color === 'string' ? color : colors.textFaint} />;
 }
 
-function icon(name: IconName) {
-  const Icon = (props: { color: ColorValue; size: number }) => <TabIcon name={name} {...props} />;
-  Icon.displayName = `TabIcon(${name})`;
-  return Icon;
-}
+const tabs: { name: string; title: string; icon: IconName }[] = [
+  { name: 'index', title: 'Home', icon: 'home-outline' },
+  { name: 'discover', title: 'Discover', icon: 'compass-outline' },
+  { name: 'romance', title: 'Romance', icon: 'heart-outline' },
+  { name: 'library', title: 'Library', icon: 'bookmark-outline' },
+  { name: 'profile', title: 'Profile', icon: 'person-outline' },
+];
 
 export default function TabsLayout() {
   return (
@@ -27,11 +30,13 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontFamily: fonts.bodyMedium, fontSize: 11 },
         sceneStyle: { backgroundColor: colors.bg },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: icon('home-outline') }} />
-      <Tabs.Screen name="discover" options={{ title: 'Discover', tabBarIcon: icon('compass-outline') }} />
-      <Tabs.Screen name="romance" options={{ title: 'Romance', tabBarIcon: icon('heart-outline') }} />
-      <Tabs.Screen name="library" options={{ title: 'Library', tabBarIcon: icon('bookmark-outline') }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('person-outline') }} />
+      {tabs.map((t) => (
+        <Tabs.Screen
+          key={t.name}
+          name={t.name}
+          options={{ title: t.title, tabBarIcon: ({ color, size }) => <TabIcon name={t.icon} color={color} size={size} /> }}
+        />
+      ))}
     </Tabs>
   );
 }

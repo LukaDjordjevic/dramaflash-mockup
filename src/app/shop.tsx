@@ -8,50 +8,55 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Text';
 import { coinPacks } from '@/data/catalogue';
-import { UNLOCK_PRICES } from '@/data/types';
+import { UNLOCK_PRICES, type UnlockIntent } from '@/data/types';
 import { catalogue } from '@/services/catalogue';
 import { useAppStore } from '@/store/useAppStore';
-import { colors, fonts, radius, space } from '@/theme';
+import { colors, gradients, radius, scrim, space } from '@/theme';
+
+/** Route params. All optional: the Library's "Manage" opens the shop with none. */
+interface Params {
+  seriesId?: string;
+  episodeId?: string;
+  episodeNumber?: string;
+  intent?: string;
+}
 
 /** Coin shop from the design. "Buy" is mocked: it credits the balance and, when the
- *  shop was opened for a locked episode, unlocks it and returns to the player. */
+ *  shop was opened from the unlock sheet, completes that unlock and returns to the player. */
 export default function ShopScreen() {
-  const { seriesId, episodeId, episodeNumber, need } = useLocalSearchParams<{
-    seriesId?: string;
-    episodeId?: string;
-    episodeNumber?: string;
-    need?: string;
-  }>();
+  const raw = useLocalSearchParams<Record<keyof Params, string>>();
+  const { seriesId, episodeId, episodeNumber } = raw;
+  const intent: UnlockIntent | undefined = raw.intent === 'season' || raw.intent === 'episode' ? raw.intent : undefined;
   const insets = useSafeAreaInsets();
   const coins = useAppStore((s) => s.coins);
   const addCoins = useAppStore((s) => s.addCoins);
   const unlockEpisode = useAppStore((s) => s.unlockEpisode);
   const unlockSeason = useAppStore((s) => s.unlockSeason);
-  const [packId, setPackId] = useState('c800');
-  const pack = coinPacks.find((p) => p.id === packId)!;
+  const [packId, setPackId] = useState(coinPacks[1].id);
+  const pack = coinPacks.find((p) => p.id === packId) ?? coinPacks[0];
   const series = seriesId ? catalogue.series(seriesId) : undefined;
-  const episode = seriesId && episodeId ? catalogue.episodes(seriesId).find((e) => e.id === episodeId) : undefined;
-  const needCoins = Number(need) || UNLOCK_PRICES.episode;
+  const episode = series && episodeId ? catalogue.episodes(series.id).find((e) => e.id === episodeId) : undefined;
+  const needCoins = intent === 'season' ? UNLOCK_PRICES.season : UNLOCK_PRICES.episode;
 
   function buy() {
     // Real app: StoreKit / Play Billing purchase, server-side receipt check, then credit.
     addCoins(pack.coins + pack.bonus);
-    if (seriesId && episodeId) {
-      if (needCoins >= UNLOCK_PRICES.season) unlockSeason(seriesId);
-      else unlockEpisode(episodeId);
+    if (series && episode && intent) {
+      const result = intent === 'season' ? unlockSeason(series.id) : unlockEpisode(episode.id);
+      if (result === 'insufficient') return; // smallest pack still covers both prices; keep the shop open if not
     }
     router.back();
   }
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: 160 }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 160 }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
             <Ionicons name="chevron-back" size={26} color={colors.white} />
           </Pressable>
           <Text variant="heading" style={{ fontSize: 20 }}>
-            Unlock Episode
+            {episode ? 'Unlock Episode' : 'Recharge Coins'}
           </Text>
         </View>
 
@@ -65,7 +70,9 @@ export default function ShopScreen() {
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Text variant="heading">{series.title}</Text>
-              <Text color={colors.textMuted}>Episode {episodeNumber} • Locked</Text>
+              <Text color={colors.textMuted}>
+                {intent === 'season' ? 'Full season' : `Episode ${episodeNumber ?? episode.number}`} • Locked
+              </Text>
               <View style={styles.epPrice}>
                 <Ionicons name="lock-closed" size={12} color={colors.cyan} />
                 <Text variant="label" color={colors.cyan}>
@@ -89,28 +96,29 @@ export default function ShopScreen() {
         <Text variant="title" style={styles.sectionTitle}>
           Recharge Coins
         </Text>
-        <View style={styles.grid}>
+        <View style={styles.grid} accessibilityRole="radiogroup">
           {coinPacks.map((p) => {
-            const selected = p.id === packId;
+            const checked = p.id === packId;
             return (
               <Pressable
                 key={p.id}
                 onPress={() => setPackId(p.id)}
-                style={[styles.pack, selected && styles.packSelected]}
+                style={[styles.pack, checked && styles.packChecked]}
                 accessibilityRole="radio"
-                accessibilityState={{ selected }}>
+                accessibilityState={{ checked }}
+                accessibilityLabel={`${p.coins} coins for ${p.priceEur.toFixed(2)} euro`}>
                 {p.badge ? (
                   <LinearGradient
-                    colors={p.badge === 'POPULAR' ? [colors.cyan, colors.cyanDeep] : [colors.purple, colors.cyan]}
+                    colors={p.badge === 'POPULAR' ? gradients.popular : gradients.bestValue}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.packBadge}>
-                    <Text style={styles.packBadgeText}>{p.badge}</Text>
+                    <Text variant="badge" style={{ fontSize: 10 }}>
+                      {p.badge}
+                    </Text>
                   </LinearGradient>
                 ) : null}
-                {selected ? (
-                  <Ionicons name="checkmark-circle-outline" size={18} color={colors.cyan} style={styles.packCheck} />
-                ) : null}
+                {checked ? <Ionicons name="checkmark-circle-outline" size={18} color={colors.cyan} style={styles.packCheck} /> : null}
                 <Ionicons name="flash-outline" size={28} color={colors.cyan} style={{ marginTop: p.badge ? 26 : 10 }} />
                 <Text variant="title" style={{ fontSize: 26 }}>
                   {p.coins}
@@ -118,8 +126,8 @@ export default function ShopScreen() {
                 <Text variant="label" color={colors.purple} style={{ opacity: p.bonus ? 1 : 0 }}>
                   + {p.bonus} Bonus
                 </Text>
-                <View style={[styles.packPrice, selected && styles.packPriceSelected]}>
-                  <Text variant="label" color={selected ? colors.black : colors.text}>
+                <View style={[styles.packPrice, checked && styles.packPriceChecked]}>
+                  <Text variant="label" color={checked ? colors.black : colors.text}>
                     €{p.priceEur.toFixed(2)}
                   </Text>
                 </View>
@@ -160,7 +168,9 @@ export default function ShopScreen() {
           <Text variant="caption">App Store Pay</Text>
         </View>
         <Pressable onPress={buy} style={styles.buy} accessibilityRole="button">
-          <Text style={styles.buyText}>Buy {pack.coins} Coins</Text>
+          <Text variant="button" color={colors.cyan} style={{ fontSize: 17 }}>
+            Buy {pack.coins} Coins
+          </Text>
           <Text variant="caption" color={colors.textSoft}>
             for €{pack.priceEur.toFixed(2)}
           </Text>
@@ -175,7 +185,7 @@ export default function ShopScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: space.lg },
+  content: { paddingHorizontal: space.lg, paddingTop: space.lg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: space.lg },
   epCard: {
     flexDirection: 'row',
@@ -195,7 +205,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: scrim(0.6),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -234,9 +244,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     gap: 4,
   },
-  packSelected: { borderColor: colors.cyan, backgroundColor: '#0F1F2A' },
+  packChecked: { borderColor: colors.cyan, backgroundColor: colors.packSelected },
   packBadge: { position: 'absolute', top: 0, left: 0, right: 0, paddingVertical: 3, alignItems: 'center' },
-  packBadgeText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.black, letterSpacing: 0.6 },
   packCheck: { position: 'absolute', top: 22, right: 8 },
   packPrice: {
     marginTop: 8,
@@ -245,7 +254,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.black,
   },
-  packPriceSelected: { backgroundColor: colors.cyan },
+  packPriceChecked: { backgroundColor: colors.cyan },
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: space.xl },
   rule: { flex: 1, height: 1, backgroundColor: colors.cardBorder },
   vip: {
@@ -273,7 +282,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: space.lg,
     paddingTop: 12,
-    backgroundColor: 'rgba(10,10,24,0.96)',
+    backgroundColor: colors.footer,
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
     gap: 10,
@@ -287,6 +296,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buyText: { fontFamily: fonts.bodySemi, fontSize: 17, color: colors.cyan },
   legal: { textAlign: 'center' },
 });

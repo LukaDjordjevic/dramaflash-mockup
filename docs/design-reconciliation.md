@@ -1,6 +1,7 @@
 # Design reconciliation
 
-Source: `FLASH.svg`, a Figma export, 8364 × 2363, nine frames. It is a mood
+Source: `FLASH.svg`, a Figma export, 8364 × 2363, nine frames. The file is
+TargetVideo's and is not in the repo; `assets/` holds the extracted subset. It is a mood
 board rather than a spec: two home variants, two detail variants, two tab
 bars, two brand names (LoveFlix on the login frame), EUR and USD, German and
 English mixed, and a leftover grey e-commerce wireframe. The table says what

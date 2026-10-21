@@ -9,13 +9,15 @@ the beta scope needs a module Expo Go cannot host. Reversed by: a player SDK
 that needs a custom native build — then a dev build or a config plugin, still
 inside Expo.
 
-## 2. expo-video behind a one-file seam
+## 2. expo-video behind a two-file seam
 
-`expo-video` wraps AVPlayer / ExoPlayer, plays HLS on both platforms, has a
-hook API that fits a feed, and preloads. Reversed by: Widevine / FairPlay or
-Google IMA ads (→ `react-native-video`), or a mobile SDK from TargetVideo's
-own player platform (→ thin native module). Either swap touches
-`services/playback.ts` and `components/EpisodeCard.tsx` only.
+`expo-video` wraps AVPlayer / ExoPlayer, plays HLS on both platforms, and has
+a hook API that fits a feed. The mock-up does no explicit preloading: the
+neighbour card's player opens its clip on mount because the list window is
+three cards wide. Reversed by: Widevine / FairPlay or Google IMA ads
+(→ `react-native-video`), or a mobile SDK from TargetVideo's own player
+platform (→ thin native module). Either swap touches `services/playback.ts`
+and `components/EpisodeCard.tsx` only.
 
 ## 3. Fixtures and service interfaces, no backend
 
@@ -45,7 +47,21 @@ Stored per series as `firstLockedIndex` so a series can differ.
 Zustand without persistence. Reload resets. Reversed by: `expo-secure-store`
 or the account service once purchases are real.
 
-## 8. One `Text` component, tokens in `theme.ts`
+## 8. Entitlements as one derived set, not store subscriptions
+
+`isUnlocked()` is pure; `useEntitlements()` selects the three fields with
+`useShallow`; the player derives one `lockedIds` set per render and uses it
+for every card and as the list's `extraData`. No screen subscribes to a store
+slice it does not read. Reversed by: nothing — this is the shape the real
+entitlement service would feed.
+
+## 9. Unit tests on the seams, CI on push
+
+jest-expo tests cover the store, the catalogue service and the format helpers;
+the GitHub Actions workflow runs typecheck, lint and tests. Reversed by:
+nothing; component and player tests would be added, not swapped.
+
+## 10. One `Text` component, tokens in `theme.ts`
 
 The design uses one serif display face and one sans body face with a small
 palette; a typed `variant` keeps screens from drifting. Reversed by: a design

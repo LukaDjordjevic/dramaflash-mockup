@@ -10,17 +10,21 @@ import { LockCard } from '@/components/LockCard';
 import { Text } from '@/components/Text';
 import type { Episode, Series } from '@/data/types';
 import { playback } from '@/services/playback';
-import { colors, fonts, radius, space } from '@/theme';
+import { colors, radius, scrim, space } from '@/theme';
+import { compact, mmss } from '@/utils/format';
 
 interface Props {
   series: Series;
   episode: Episode;
+  index: number;
   height: number;
+  /** This card is the one on screen. Only the active card plays. */
   active: boolean;
   locked: boolean;
   /** Next episode exists and is locked: show the cliffhanger lock when this one ends. */
   nextLocked: boolean;
-  onEnded: () => void;
+  /** Called with this card's index when the viewer should move on to the next episode. */
+  onAdvance: (fromIndex: number) => void;
   onUnlock: (episode: Episode) => void;
 }
 
@@ -29,9 +33,8 @@ export function EpisodeCard(props: Props) {
   return <PlayingEpisode {...props} />;
 }
 
-function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, onUnlock }: Props) {
-  const source = playback.source(episode);
-  const player = useVideoPlayer(source, (p) => {
+function PlayingEpisode({ series, episode, index, height, active, nextLocked, onAdvance, onUnlock }: Props) {
+  const player = useVideoPlayer(playback.source(episode), (p) => {
     p.loop = false;
     p.timeUpdateEventInterval = 0.25;
   });
@@ -55,21 +58,17 @@ function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, 
   }
 
   useEffect(() => {
-    if (!source) return;
     if (active && !ended) player.play();
     if (!active) rewind(player);
-  }, [active, ended, player, source]);
+  }, [active, ended, player]);
 
-  useEventListener(player, 'playToEnd', () => {
-    setEnded(true);
-    onEnded();
-  });
+  useEventListener(player, 'playToEnd', () => setEnded(true));
 
-  // The next episode was locked when this one ended and has just been unlocked:
-  // advance now instead of leaving the viewer on a frozen frame.
+  // The single place that moves the feed on. Runs when this episode ends with the
+  // next one free, and again if the next one gets unlocked while sitting here.
   useEffect(() => {
-    if (active && ended && !nextLocked) onEnded();
-  }, [active, ended, nextLocked, onEnded]);
+    if (active && ended && !nextLocked) onAdvance(index);
+  }, [active, ended, nextLocked, onAdvance, index]);
 
   const duration = player.duration || episode.durationSec;
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
@@ -77,34 +76,32 @@ function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, 
 
   return (
     <View style={[styles.card, { height }]}>
-      {!source || !hasFrame ? <Image source={episode.art} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
-      {source ? (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          nativeControls={false}
-          allowsPictureInPicture={false}
-          onFirstFrameRender={() => setHasFrame(true)}
-        />
-      ) : null}
+      {hasFrame ? null : <Image source={episode.art} style={StyleSheet.absoluteFill} contentFit="cover" />}
+      <VideoView
+        player={player}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+        allowsPictureInPicture={false}
+        onFirstFrameRender={() => setHasFrame(true)}
+      />
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={() => {
-          if (!source || ended) return;
+          if (ended) return;
           if (isPlaying) player.pause();
           else player.play();
         }}
         accessibilityRole="button"
         accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
       />
-      {!isPlaying && source && !ended ? (
+      {!isPlaying && !ended ? (
         <View pointerEvents="none" style={styles.pausedBadge}>
           <Ionicons name="play" size={34} color={colors.white} />
         </View>
       ) : null}
       <Chrome series={series} episode={episode} />
-      <View style={styles.progress}>
+      <View style={styles.progress} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}>
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
       {cliffhanger ? (
@@ -133,15 +130,11 @@ function LockedEpisode({ series, episode, height, onUnlock }: Props) {
 function Chrome({ series, episode }: { series: Series; episode: Episode }) {
   return (
     <>
-      <LinearGradient
-        pointerEvents="none"
-        colors={['transparent', 'rgba(0,0,0,0.75)']}
-        style={styles.bottomShade}
-      />
+      <LinearGradient pointerEvents="none" colors={['transparent', scrim(0.75)]} style={styles.bottomShade} />
       <View pointerEvents="box-none" style={styles.rail}>
-        <RailButton icon="heart-outline" label={compact(episode.likes)} />
-        <RailButton icon="chatbubble-outline" label={compact(episode.comments)} />
-        <RailButton icon="share-social-outline" label="Share" />
+        <RailButton icon="heart-outline" label={compact(episode.likes)} a11y="Like" />
+        <RailButton icon="chatbubble-outline" label={compact(episode.comments)} a11y="Comments" />
+        <RailButton icon="share-social-outline" label="Share" a11y="Share" />
       </View>
       <View pointerEvents="box-none" style={styles.meta}>
         <Text variant="title" style={styles.metaTitle}>
@@ -166,32 +159,24 @@ function Chrome({ series, episode }: { series: Series; episode: Episode }) {
   );
 }
 
-function RailButton({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+/** Design affordance; inert in the mock (see CLAUDE.md "Inert affordances"). */
+function RailButton({ icon, label, a11y }: { icon: keyof typeof Ionicons.glyphMap; label: string; a11y: string }) {
   return (
-    <View style={styles.railItem}>
+    <Pressable style={styles.railItem} accessibilityRole="button" accessibilityLabel={a11y}>
       <View style={styles.railCircle}>
         <Ionicons name={icon} size={22} color={colors.white} />
       </View>
       <Text variant="caption" color={colors.textSoft}>
         {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
+// Plain function: the compiler lint forbids mutating a hook's return value inside an effect.
 function rewind(player: VideoPlayer) {
   player.pause();
   player.currentTime = 0;
-}
-
-function compact(n: number) {
-  return n >= 1000 ? `${Math.round(n / 100) / 10}K`.replace('.0K', 'K') : String(n);
-}
-
-export function mmss(sec: number) {
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -205,7 +190,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: scrim(0.45),
     alignItems: 'center',
     justifyContent: 'center',
     paddingLeft: 4,
@@ -216,7 +201,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: scrim(0.4),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -227,9 +212,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radius.sm,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: scrim(0.15, true),
   },
-  progress: { position: 'absolute', left: 0, right: 0, bottom: 96, height: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
+  progress: { position: 'absolute', left: 0, right: 0, bottom: 96, height: 3, backgroundColor: scrim(0.2, true) },
   progressFill: { height: 3, backgroundColor: colors.cyan },
-  watchText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.black },
 });

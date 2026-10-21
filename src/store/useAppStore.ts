@@ -1,23 +1,35 @@
 // Wallet and entitlements. In-memory for the mock; the real app would back
 // this with the account service and StoreKit / Play Billing receipts.
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 
 import { UNLOCK_PRICES } from '@/data/types';
 
-interface AppState {
-  coins: number;
+/** The slice that decides whether an episode is playable. */
+export interface Entitlements {
   premium: boolean;
-  unlockedEpisodes: Set<string>;
-  unlockedSeasons: Set<string>;
-  /** Series id → last watched episode number. */
+  unlockedEpisodes: ReadonlySet<string>;
+  unlockedSeasons: ReadonlySet<string>;
+}
+
+export type UnlockResult = 'ok' | 'insufficient';
+
+interface AppState extends Entitlements {
+  coins: number;
+  /** Series id → highest episode number reached. */
   progress: Record<string, number>;
 
-  isEpisodeUnlocked(episodeId: string, seriesId: string): boolean;
-  unlockEpisode(episodeId: string): 'ok' | 'insufficient';
-  unlockSeason(seriesId: string): 'ok' | 'insufficient';
+  unlockEpisode(episodeId: string): UnlockResult;
+  unlockSeason(seriesId: string): UnlockResult;
+  /** Mock: flips premium on with no purchase behind it. */
   subscribePremium(): void;
   addCoins(amount: number): void;
   setProgress(seriesId: string, episodeNumber: number): void;
+}
+
+/** Pure, so screens and tests can use it without a hook. */
+export function isUnlocked(e: Entitlements, episodeId: string, seriesId: string): boolean {
+  return e.premium || e.unlockedSeasons.has(seriesId) || e.unlockedEpisodes.has(episodeId);
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -27,26 +39,17 @@ export const useAppStore = create<AppState>((set, get) => ({
   unlockedSeasons: new Set(),
   progress: {},
 
-  isEpisodeUnlocked(episodeId, seriesId) {
-    const s = get();
-    return s.premium || s.unlockedSeasons.has(seriesId) || s.unlockedEpisodes.has(episodeId);
-  },
-
   unlockEpisode(episodeId) {
     const { coins, unlockedEpisodes } = get();
     if (coins < UNLOCK_PRICES.episode) return 'insufficient';
-    const next = new Set(unlockedEpisodes);
-    next.add(episodeId);
-    set({ coins: coins - UNLOCK_PRICES.episode, unlockedEpisodes: next });
+    set({ coins: coins - UNLOCK_PRICES.episode, unlockedEpisodes: new Set(unlockedEpisodes).add(episodeId) });
     return 'ok';
   },
 
   unlockSeason(seriesId) {
     const { coins, unlockedSeasons } = get();
     if (coins < UNLOCK_PRICES.season) return 'insufficient';
-    const next = new Set(unlockedSeasons);
-    next.add(seriesId);
-    set({ coins: coins - UNLOCK_PRICES.season, unlockedSeasons: next });
+    set({ coins: coins - UNLOCK_PRICES.season, unlockedSeasons: new Set(unlockedSeasons).add(seriesId) });
     return 'ok';
   },
 
@@ -62,3 +65,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({ progress: { ...s.progress, [seriesId]: Math.max(s.progress[seriesId] ?? 0, episodeNumber) } }));
   },
 }));
+
+/** Subscribes to exactly the three fields that affect lock state. */
+export function useEntitlements(): Entitlements {
+  return useAppStore(
+    useShallow((s) => ({ premium: s.premium, unlockedEpisodes: s.unlockedEpisodes, unlockedSeasons: s.unlockedSeasons })),
+  );
+}

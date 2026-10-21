@@ -1,39 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { FlatList, type ListViewToken, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EpisodeCard } from '@/components/EpisodeCard';
 import { Text } from '@/components/Text';
 import type { Episode } from '@/data/types';
 import { catalogue } from '@/services/catalogue';
-import { useAppStore } from '@/store/useAppStore';
-import { colors, space } from '@/theme';
+import { useAppStore, useEntitlements } from '@/store/useAppStore';
+import { colors, scrim, space } from '@/theme';
 
 const viewabilityConfig = { itemVisiblePercentThreshold: 60 };
 
+/** Vertical paged player. `?ep=N` opens on episode N (clamped to what exists). */
 export default function WatchScreen() {
   const { id, ep } = useLocalSearchParams<{ id: string; ep?: string }>();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const series = catalogue.series(id);
-  const episodes = useMemo(() => catalogue.episodes(id), [id]);
+  const episodes = catalogue.episodes(id);
   const listRef = useRef<FlatList<Episode>>(null);
   const startIndex = Math.max(0, Math.min(episodes.length - 1, (Number(ep) || 1) - 1));
   const [activeIndex, setActiveIndex] = useState(startIndex);
 
-  const isEpisodeUnlocked = useAppStore((s) => s.isEpisodeUnlocked);
-  const premium = useAppStore((s) => s.premium);
-  const unlockedEpisodes = useAppStore((s) => s.unlockedEpisodes);
-  const unlockedSeasons = useAppStore((s) => s.unlockedSeasons);
+  const entitlements = useEntitlements();
   const setProgress = useAppStore((s) => s.setProgress);
-
-  const locked = useCallback(
-    (e: Episode) => !!series && catalogue.isLocked(series, e.number) && !isEpisodeUnlocked(e.id, series.id),
-    // Store sets are replaced on change, so listing them keeps the callback fresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [series, isEpisodeUnlocked, premium, unlockedEpisodes, unlockedSeasons],
+  // One derived value drives every card's lock state; it is also the FlatList's
+  // re-render key, so an unlock reaches the cards without any other plumbing.
+  const lockedIds = useMemo(
+    () => (series ? catalogue.lockedEpisodeIds(series, entitlements) : new Set<string>()),
+    [series, entitlements],
   );
 
   useEffect(() => {
@@ -41,13 +38,10 @@ export default function WatchScreen() {
     if (e && series) setProgress(series.id, e.number);
   }, [activeIndex, episodes, series, setProgress]);
 
-  const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: { isViewable: boolean; index?: number | null }[] }) => {
-      const first = viewableItems.find((v) => v.isViewable);
-      if (first && typeof first.index === 'number') setActiveIndex(first.index);
-    },
-    [],
-  );
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ListViewToken[] }) => {
+    const first = viewableItems.find((v) => v.isViewable);
+    if (first && typeof first.index === 'number') setActiveIndex(first.index);
+  }, []);
 
   const openUnlock = useCallback(
     (e: Episode) => {
@@ -60,13 +54,11 @@ export default function WatchScreen() {
     [series],
   );
 
-  const onEnded = useCallback(
+  const advanceFrom = useCallback(
     (index: number) => {
-      const next = episodes[index + 1];
-      if (!next || locked(next)) return; // cliffhanger: the card shows the lock
-      listRef.current?.scrollToIndex({ index: index + 1, animated: true });
+      if (index + 1 < episodes.length) listRef.current?.scrollToIndex({ index: index + 1, animated: true });
     },
-    [episodes, locked],
+    [episodes.length],
   );
 
   if (!series) {
@@ -89,11 +81,12 @@ export default function WatchScreen() {
             <EpisodeCard
               series={series}
               episode={item}
+              index={index}
               height={height}
               active={index === activeIndex}
-              locked={locked(item)}
-              nextLocked={!!next && locked(next)}
-              onEnded={() => onEnded(index)}
+              locked={lockedIds.has(item.id)}
+              nextLocked={!!next && lockedIds.has(next.id)}
+              onAdvance={advanceFrom}
               onUnlock={openUnlock}
             />
           );
@@ -104,19 +97,14 @@ export default function WatchScreen() {
         getItemLayout={(_, index) => ({ length: height, offset: height * index, index })}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}
-        // Keep the mounted window small: about three cards, three players.
+        // About three cards mounted at a time, so about three players.
         windowSize={3}
         initialNumToRender={1}
         maxToRenderPerBatch={1}
-        extraData={[premium, unlockedEpisodes, unlockedSeasons]}
+        extraData={lockedIds}
       />
       <View style={[styles.top, { top: insets.top + 4 }]} pointerEvents="box-none">
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.back}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Back">
+        <Pressable onPress={() => router.back()} style={styles.back} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
           <Ionicons name="chevron-back" size={26} color={colors.white} />
         </Pressable>
         <Text variant="label" color={colors.textSoft}>
@@ -142,7 +130,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: scrim(0.35),
     alignItems: 'center',
     justifyContent: 'center',
   },

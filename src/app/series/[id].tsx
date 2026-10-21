@@ -5,13 +5,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { mmss } from '@/components/EpisodeCard';
 import { PosterCard } from '@/components/PosterCard';
 import { Text } from '@/components/Text';
 import { UNLOCK_PRICES } from '@/data/types';
 import { catalogue } from '@/services/catalogue';
-import { useAppStore } from '@/store/useAppStore';
-import { colors, fonts, radius, space } from '@/theme';
+import { useAppStore, useEntitlements } from '@/store/useAppStore';
+import { colors, gradients, radius, scrim, space } from '@/theme';
+import { compact, mmss } from '@/utils/format';
 
 export default function SeriesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -19,11 +19,7 @@ export default function SeriesScreen() {
   const insets = useSafeAreaInsets();
   const series = catalogue.series(id);
   const episodes = catalogue.episodes(id);
-  const isEpisodeUnlocked = useAppStore((s) => s.isEpisodeUnlocked);
-  // Subscribed so the list re-renders when entitlements change.
-  useAppStore((s) => s.unlockedEpisodes);
-  useAppStore((s) => s.unlockedSeasons);
-  useAppStore((s) => s.premium);
+  const entitlements = useEntitlements();
   const progress = useAppStore((s) => s.progress[id] ?? 0);
 
   if (!series) {
@@ -35,14 +31,18 @@ export default function SeriesScreen() {
   }
 
   const next = Math.max(1, progress);
-  const related = catalogue.allSeries().filter((s) => s.id !== series.id && s.genres.some((g) => series.genres.includes(g))).slice(0, 3);
+  const firstLocked = catalogue.firstLockedEpisode(series);
+  const related = catalogue
+    .allSeries()
+    .filter((s) => s.id !== series.id && s.genres.some((g) => series.genres.includes(g)))
+    .slice(0, 3);
 
   return (
     <View style={styles.screen}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space.xxl }}>
         <View style={{ height: width * 1.05 }}>
           <Image source={series.keyArt ?? series.poster} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <LinearGradient colors={['rgba(0,0,0,0.4)', 'transparent', colors.bg]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={[scrim(0.4), 'transparent', colors.bg]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
         </View>
 
         <View style={styles.body}>
@@ -78,7 +78,7 @@ export default function SeriesScreen() {
               onPress={() => router.push({ pathname: '/watch/[id]', params: { id: series.id, ep: String(next) } })}
               accessibilityRole="button">
               <Ionicons name="play-outline" size={20} color={colors.black} />
-              <Text style={styles.playText}>Play Ep {next}</Text>
+              <Text variant="button">Play Ep {next}</Text>
             </Pressable>
             <Pressable style={styles.round} accessibilityRole="button" accessibilityLabel="Save">
               <Ionicons name="heart-outline" size={22} color={colors.text} />
@@ -108,7 +108,7 @@ export default function SeriesScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18 }}>
                 {series.cast.map((c) => (
                   <View key={c.name} style={styles.castItem}>
-                    <Image source={c.photo} style={styles.castPhoto} contentFit="cover" />
+                    <Image source={c.photo} style={styles.castPhoto} contentFit="cover" accessibilityLabel={c.name} />
                     <Text variant="label" numberOfLines={1}>
                       {c.name}
                     </Text>
@@ -133,39 +133,43 @@ export default function SeriesScreen() {
               Sort
             </Text>
           </View>
-          <Pressable
-            onPress={() =>
-              router.push({
-                pathname: '/unlock',
-                params: { seriesId: series.id, episodeId: episodes[series.firstLockedIndex]?.id ?? '', episodeNumber: String(series.firstLockedIndex + 1) },
-              })
-            }
-            accessibilityRole="button">
-            <LinearGradient colors={['#2A1B4D', '#1C1B3A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bundle}>
-              <View style={{ flex: 1 }}>
-                <Text variant="heading" style={{ fontSize: 17 }}>
-                  Unlock Full Season
-                </Text>
-                <Text variant="caption" color={colors.textSoft}>
-                  {UNLOCK_PRICES.season} coins, or save 40% with the bundle
-                </Text>
-              </View>
-              <View style={styles.bundlePrice}>
-                <Text variant="label" color={colors.white}>
-                  €9.99
-                </Text>
-              </View>
-            </LinearGradient>
-          </Pressable>
+          {firstLocked ? (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/unlock',
+                  params: { seriesId: series.id, episodeId: firstLocked.id, episodeNumber: String(firstLocked.number) },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Unlock full season">
+              <LinearGradient colors={gradients.seasonBundle} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.bundle}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="heading" style={{ fontSize: 17 }}>
+                    Unlock Full Season
+                  </Text>
+                  <Text variant="caption" color={colors.textSoft}>
+                    {UNLOCK_PRICES.season} coins, or save 40% with the bundle
+                  </Text>
+                </View>
+                <View style={styles.bundlePrice}>
+                  <Text variant="label" color={colors.white}>
+                    €9.99
+                  </Text>
+                </View>
+              </LinearGradient>
+            </Pressable>
+          ) : null}
 
           {episodes.map((e) => {
-            const locked = catalogue.isLocked(series, e.number) && !isEpisodeUnlocked(e.id, series.id);
+            const locked = catalogue.isEpisodeLocked(series, e, entitlements);
             return (
               <Pressable
                 key={e.id}
                 style={styles.ep}
                 onPress={() => router.push({ pathname: '/watch/[id]', params: { id: series.id, ep: String(e.number) } })}
-                accessibilityRole="button">
+                accessibilityRole="button"
+                accessibilityLabel={`Episode ${e.number}, ${e.title}${locked ? ', locked' : ''}`}>
                 <View style={styles.epThumb}>
                   <Image source={e.thumb} style={StyleSheet.absoluteFill} contentFit="cover" />
                   <View style={[styles.epIcon, locked && styles.epIconLocked]}>
@@ -219,20 +223,16 @@ export default function SeriesScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.white} />
         </Pressable>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={styles.back}>
+          <Pressable style={styles.back} accessibilityRole="button" accessibilityLabel="Save">
             <Ionicons name="heart-outline" size={20} color={colors.white} />
-          </View>
-          <View style={styles.back}>
+          </Pressable>
+          <Pressable style={styles.back} accessibilityRole="button" accessibilityLabel="Share">
             <Ionicons name="share-outline" size={20} color={colors.white} />
-          </View>
+          </Pressable>
         </View>
       </View>
     </View>
   );
-}
-
-function compact(n: number) {
-  return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
 }
 
 const styles = StyleSheet.create({
@@ -253,7 +253,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  playText: { fontFamily: fonts.bodySemi, fontSize: 16, color: colors.black },
   round: {
     width: 48,
     height: 48,
@@ -298,7 +297,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingLeft: 2,
   },
-  epIconLocked: { backgroundColor: 'rgba(0,0,0,0.6)', paddingLeft: 0 },
+  epIconLocked: { backgroundColor: scrim(0.6), paddingLeft: 0 },
   epMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   more: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: space.md },
   related: { flexDirection: 'row', gap: space.md },
@@ -314,7 +313,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: scrim(0.4),
     alignItems: 'center',
     justifyContent: 'center',
   },

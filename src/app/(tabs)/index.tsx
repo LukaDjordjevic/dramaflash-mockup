@@ -51,15 +51,17 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
       <View style={[styles.topBar, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
-        <View style={styles.logo}>
+        <View style={styles.logo} accessibilityLabel="DramaFlash">
           <Ionicons name="heart-outline" size={20} color={colors.black} />
         </View>
         <View style={styles.topActions}>
-          <Ionicons name="search-outline" size={24} color={colors.text} />
-          <View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Search" hitSlop={8}>
+            <Ionicons name="search-outline" size={24} color={colors.text} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Notifications, 1 new" hitSlop={8}>
             <Ionicons name="notifications-outline" size={24} color={colors.text} />
             <View style={styles.dot} />
-          </View>
+          </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Profile">
             <Image source={require('../../../assets/cast/avatar.jpg')} style={styles.avatar} />
           </Pressable>

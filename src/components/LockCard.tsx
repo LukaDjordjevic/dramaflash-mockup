@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Text } from '@/components/Text';
-import { colors, fonts, radius } from '@/theme';
+import { colors, radius, scrim } from '@/theme';
 
 /** The centred lock from the feed frame. `emphasis` slides it in — the cliffhanger moment. */
 export function LockCard({
@@ -37,7 +37,9 @@ export function LockCard({
               <Ionicons name="key" size={12} color={colors.black} />
             </View>
           </View>
-          <Text style={styles.title}>{title}</Text>
+          <Text variant="label" color={colors.white} style={styles.title}>
+            {title}
+          </Text>
           {subtitle ? (
             <Text variant="caption" color={colors.textMuted}>
               {subtitle}
@@ -56,9 +58,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 18,
     borderRadius: radius.lg,
-    backgroundColor: 'rgba(11,27,64,0.9)',
+    backgroundColor: colors.lockCard,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: scrim(0.08, true),
     alignItems: 'center',
     gap: 8,
   },
@@ -74,5 +76,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.white },
+  title: { fontSize: 15 },
 });

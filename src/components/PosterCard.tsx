@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/Text';
 import type { Series } from '@/data/types';
-import { colors, fonts, poster, radius } from '@/theme';
+import { colors, gradients, poster, radius, scrim } from '@/theme';
 
 export function PosterCard({ series, width = poster.width }: { series: Series; width?: number }) {
   const height = (width * poster.height) / poster.width;
@@ -18,7 +18,7 @@ export function PosterCard({ series, width = poster.width }: { series: Series; w
       accessibilityLabel={series.title}>
       <View style={[styles.frame, { width, height }]}>
         <Image source={series.poster} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
-        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.shade} />
+        <LinearGradient colors={['transparent', scrim(0.85)]} style={styles.shade} />
         {series.pro ? <ProBadge /> : null}
         <View style={styles.meta}>
           <Text variant="caption" color={colors.textSoft}>
@@ -36,11 +36,11 @@ export function PosterCard({ series, width = poster.width }: { series: Series; w
   );
 }
 
-export function ProBadge() {
+function ProBadge() {
   return (
-    <LinearGradient colors={[colors.cyan, colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pro}>
+    <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pro}>
       <Ionicons name="diamond" size={9} color={colors.black} />
-      <Text style={styles.proText}>PRO</Text>
+      <Text variant="badge">PRO</Text>
     </LinearGradient>
   );
 }
@@ -72,6 +72,5 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
-  proText: { fontFamily: fonts.bodyBold, fontSize: 9, color: colors.black, letterSpacing: 0.4 },
   title: { fontSize: 15, lineHeight: 19, marginTop: 8 },
 });

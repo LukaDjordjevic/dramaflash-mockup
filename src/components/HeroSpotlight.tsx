@@ -6,8 +6,9 @@ import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { Text } from '@/components/Text';
 import type { Series } from '@/data/types';
-import { colors, fonts, radius, space } from '@/theme';
+import { colors, radius, scrim, space } from '@/theme';
 
+/** Home hero. German strings ("Jetzt ansehen", "Episoden") are as drawn in the hand-off. */
 export function HeroSpotlight({ series }: { series: Series }) {
   const { width } = useWindowDimensions();
   const height = Math.round(width * 1.33);
@@ -15,14 +16,16 @@ export function HeroSpotlight({ series }: { series: Series }) {
     <View style={{ height }}>
       <Image source={series.poster} style={StyleSheet.absoluteFill} contentFit="cover" />
       <LinearGradient
-        colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.7)', colors.bg]}
+        colors={[scrim(0.15), scrim(0), scrim(0.7), colors.bg]}
         locations={[0, 0.35, 0.75, 1]}
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.body}>
         <View style={styles.tags}>
           <View style={styles.spot}>
-            <Text style={styles.spotText}>Spotlight</Text>
+            <Text variant="label" color={colors.purple} style={{ fontSize: 12 }}>
+              Spotlight
+            </Text>
           </View>
           {series.genres.map((g) => (
             <Text key={g} variant="bodyMedium" color={colors.textSoft}>
@@ -46,7 +49,7 @@ export function HeroSpotlight({ series }: { series: Series }) {
             onPress={() => router.push({ pathname: '/watch/[id]', params: { id: series.id } })}
             accessibilityRole="button">
             <Ionicons name="play-outline" size={20} color={colors.black} />
-            <Text style={styles.playText}>Jetzt ansehen</Text>
+            <Text variant="button">Jetzt ansehen</Text>
           </Pressable>
           <Pressable style={styles.round} accessibilityRole="button" accessibilityLabel="Add to list">
             <Ionicons name="add" size={22} color={colors.text} />
@@ -66,7 +69,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radius.pill,
   },
-  spotText: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.purple },
   title: { marginTop: 2 },
   stats: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md },
@@ -80,7 +82,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  playText: { fontFamily: fonts.bodySemi, fontSize: 16, color: colors.black },
   round: {
     width: 48,
     height: 48,

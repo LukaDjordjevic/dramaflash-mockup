@@ -7,9 +7,10 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/Text';
+import type { Series } from '@/data/types';
 import { catalogue } from '@/services/catalogue';
-import { useAppStore } from '@/store/useAppStore';
-import { colors, fonts, radius, space } from '@/theme';
+import { useAppStore, useEntitlements } from '@/store/useAppStore';
+import { colors, gradients, radius, scrim, space } from '@/theme';
 
 const settings: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { icon: 'time-outline', label: 'Watch History' },
@@ -18,13 +19,34 @@ const settings: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { icon: 'help-circle-outline', label: 'Help & Support' },
 ];
 
+type Tab = 'Saved' | 'Purchases';
+
+interface Row {
+  series: Series;
+  watched: number;
+  badge?: 'New Eps' | 'Completed';
+}
+
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<'Saved' | 'Purchases'>('Saved');
-  const premium = useAppStore((s) => s.premium);
+  const [tab, setTab] = useState<Tab>('Saved');
+  const entitlements = useEntitlements();
   const coins = useAppStore((s) => s.coins);
   const progress = useAppStore((s) => s.progress);
-  const saved = catalogue.librarySaved();
+
+  const saved: Row[] = catalogue.librarySaved();
+  // Purchases = anything the viewer has paid for in this session: a season, an
+  // episode, or everything on premium. Reads the store, so an unlock shows up here.
+  const purchased: Row[] = catalogue
+    .allSeries()
+    .filter(
+      (s) =>
+        entitlements.premium ||
+        entitlements.unlockedSeasons.has(s.id) ||
+        catalogue.episodes(s.id).some((e) => entitlements.unlockedEpisodes.has(e.id)),
+    )
+    .map((s) => ({ series: s, watched: progress[s.id] ?? 0 }));
+  const rows = tab === 'Saved' ? saved : purchased;
 
   return (
     <ScrollView
@@ -33,32 +55,41 @@ export default function LibraryScreen() {
       showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text variant="title">My Library</Text>
-        <Ionicons name="settings-outline" size={22} color={colors.text} />
+        <Pressable accessibilityRole="button" accessibilityLabel="Settings" hitSlop={8}>
+          <Ionicons name="settings-outline" size={22} color={colors.text} />
+        </Pressable>
       </View>
 
-      <LinearGradient colors={['#1B1A38', '#1E1538']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profile}>
+      <LinearGradient colors={gradients.profileCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.profile}>
         <View style={styles.avatarRing}>
-          <Image source={require('../../../assets/cast/avatar.jpg')} style={styles.avatar} />
+          <Image source={require('../../../assets/cast/avatar.jpg')} style={styles.avatar} accessibilityLabel="Profile photo" />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="heading">Sarah Connor</Text>
           <View style={styles.memberRow}>
-            <Ionicons name={premium ? 'diamond' : 'flash-outline'} size={13} color={colors.textSoft} />
+            <Ionicons name={entitlements.premium ? 'diamond' : 'flash-outline'} size={13} color={colors.textSoft} />
             <Text variant="caption" color={colors.textSoft}>
-              {premium ? 'Premium Member' : `${coins} Coins`}
+              {entitlements.premium ? 'Premium Member' : `${coins} Coins`}
             </Text>
           </View>
         </View>
-        <Pressable onPress={() => router.push('/shop')} accessibilityRole="button">
-          <LinearGradient colors={[colors.cyan, colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.manage}>
-            <Text style={styles.manageText}>Manage</Text>
+        <Pressable onPress={() => router.push('/shop')} accessibilityRole="button" accessibilityLabel="Manage coins">
+          <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.manage}>
+            <Text variant="button" style={{ fontSize: 14 }}>
+              Manage
+            </Text>
           </LinearGradient>
         </Pressable>
       </LinearGradient>
 
-      <View style={styles.segment}>
+      <View style={styles.segment} accessibilityRole="tablist">
         {(['Saved', 'Purchases'] as const).map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={[styles.segmentItem, tab === t && styles.segmentActive]}>
+          <Pressable
+            key={t}
+            onPress={() => setTab(t)}
+            style={[styles.segmentItem, tab === t && styles.segmentActive]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === t }}>
             <Text variant="label" color={tab === t ? colors.white : colors.textMuted}>
               {t}
             </Text>
@@ -66,51 +97,63 @@ export default function LibraryScreen() {
         ))}
       </View>
 
-      <View style={styles.grid}>
-        {saved.map(({ series, watched, badge }) => {
-          const ep = Math.max(watched, progress[series.id] ?? 0);
-          const locked = tab === 'Purchases' && !premium;
-          return (
-            <Pressable
-              key={series.id}
-              style={styles.cell}
-              onPress={() => router.push({ pathname: '/watch/[id]', params: { id: series.id, ep: String(Math.min(ep, 6)) } })}
-              accessibilityRole="button">
-              <View style={styles.cellArt}>
-                <Image source={series.poster} style={StyleSheet.absoluteFill} contentFit="cover" />
-                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.cellShade} />
-                {badge ? (
-                  <View style={[styles.badge, badge === 'Completed' && styles.badgeDark]}>
-                    <Text style={[styles.badgeText, badge === 'Completed' && { color: colors.white }]}>{badge}</Text>
-                  </View>
-                ) : locked ? (
-                  <View style={styles.lock}>
-                    <Ionicons name="lock-closed" size={12} color={colors.white} />
-                  </View>
-                ) : null}
-                <Text variant="caption" color={colors.cyan} style={styles.cellProgress}>
-                  Ep {ep} / {series.episodeCount}
+      {rows.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="lock-open-outline" size={28} color={colors.textFaint} />
+          <Text color={colors.textMuted}>Nothing unlocked yet.</Text>
+          <Text variant="caption">Unlock an episode or a season from the player and it shows up here.</Text>
+        </View>
+      ) : (
+        <View style={styles.grid}>
+          {rows.map(({ series, watched, badge }) => {
+            const ep = Math.max(watched, progress[series.id] ?? 0);
+            return (
+              <Pressable
+                key={series.id}
+                style={styles.cell}
+                onPress={() => router.push({ pathname: '/watch/[id]', params: { id: series.id, ep: String(ep) } })}
+                accessibilityRole="button"
+                accessibilityLabel={`${series.title}, episode ${ep} of ${series.episodeCount}`}>
+                <View style={styles.cellArt}>
+                  <Image source={series.poster} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  <LinearGradient colors={['transparent', scrim(0.8)]} style={styles.cellShade} />
+                  {badge ? (
+                    <View style={[styles.badge, badge === 'Completed' && styles.badgeDark]}>
+                      <Text variant="badge" color={badge === 'Completed' ? colors.white : colors.black} style={{ fontSize: 10 }}>
+                        {badge}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text variant="caption" color={colors.cyan} style={styles.cellProgress}>
+                    Ep {ep} / {series.episodeCount}
+                  </Text>
+                  <View style={[styles.cellBar, { width: `${Math.min(100, (ep / series.episodeCount) * 100)}%` }]} />
+                </View>
+                <Text variant="heading" style={styles.cellTitle} numberOfLines={1}>
+                  {series.title}
                 </Text>
-                <View style={[styles.cellBar, { width: `${Math.min(100, (ep / series.episodeCount) * 100)}%` }]} />
-              </View>
-              <Text variant="heading" style={styles.cellTitle} numberOfLines={1}>
-                {series.title}
-              </Text>
-              <View style={styles.cellMeta}>
-                <Ionicons name="heart-outline" size={11} color={colors.purple} />
-                <Text variant="caption" color={colors.textMuted}>
-                  {series.tagline}
-                </Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
+                <View style={styles.cellMeta}>
+                  <Ionicons name="heart-outline" size={11} color={colors.purple} />
+                  <Text variant="caption" color={colors.textMuted} numberOfLines={1}>
+                    {series.tagline}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
-      <Text style={styles.sectionLabel}>SETTINGS & MORE</Text>
+      <Text variant="overline" style={styles.sectionLabel}>
+        SETTINGS & MORE
+      </Text>
       <View style={styles.settings}>
         {settings.map((row, i) => (
-          <View key={row.label} style={[styles.row, i < settings.length - 1 && styles.rowBorder]}>
+          <Pressable
+            key={row.label}
+            style={[styles.row, i < settings.length - 1 && styles.rowBorder]}
+            accessibilityRole="button"
+            accessibilityLabel={row.label}>
             <View style={styles.rowIcon}>
               <Ionicons name={row.icon} size={18} color={colors.cyan} />
             </View>
@@ -118,7 +161,7 @@ export default function LibraryScreen() {
               {row.label}
             </Text>
             <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-          </View>
+          </Pressable>
         ))}
       </View>
     </ScrollView>
@@ -146,7 +189,6 @@ const styles = StyleSheet.create({
   avatar: { width: '100%', height: '100%', borderRadius: 28 },
   memberRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   manage: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.md },
-  manageText: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.black },
   segment: {
     marginHorizontal: space.lg,
     marginTop: space.xl,
@@ -158,6 +200,7 @@ const styles = StyleSheet.create({
   },
   segmentItem: { paddingHorizontal: 22, paddingVertical: 8, borderRadius: radius.sm },
   segmentActive: { backgroundColor: colors.black },
+  empty: { alignItems: 'center', gap: 6, paddingVertical: space.xxl, paddingHorizontal: space.xl },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -185,32 +228,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radius.pill,
   },
-  badgeDark: { backgroundColor: 'rgba(0,0,0,0.7)' },
-  badgeText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.black },
-  lock: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  badgeDark: { backgroundColor: scrim(0.7) },
   cellProgress: { position: 'absolute', left: 8, bottom: 10 },
   cellBar: { position: 'absolute', left: 0, bottom: 0, height: 2, backgroundColor: colors.cyan },
   cellTitle: { fontSize: 15, lineHeight: 19, marginTop: 8 },
   cellMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  sectionLabel: {
-    fontFamily: fonts.bodySemi,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    color: colors.textMuted,
-    paddingHorizontal: space.lg,
-    marginTop: space.xxl,
-    marginBottom: space.md,
-  },
+  sectionLabel: { paddingHorizontal: space.lg, marginTop: space.xxl, marginBottom: space.md },
   settings: { marginHorizontal: space.lg, borderRadius: radius.lg, backgroundColor: colors.card, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.cardBorder },

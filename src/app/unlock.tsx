@@ -6,40 +6,52 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { Text } from '@/components/Text';
-import { UNLOCK_PRICES } from '@/data/types';
+import { UNLOCK_PRICES, type UnlockIntent } from '@/data/types';
 import { catalogue } from '@/services/catalogue';
 import { useAppStore } from '@/store/useAppStore';
-import { colors, fonts, radius, space } from '@/theme';
+import { colors, radius, scrim, space } from '@/theme';
 
-type Option = 'episode' | 'season' | 'premium';
+type Option = UnlockIntent | 'premium';
+
+/** Route params. All three are needed; a bare deep link closes the sheet. */
+interface Params {
+  seriesId?: string;
+  episodeId?: string;
+  episodeNumber?: string;
+}
 
 /** The "Continue the romance" sheet from the design, as a transparent modal over the player. */
 export default function UnlockScreen() {
-  const { seriesId, episodeId, episodeNumber } = useLocalSearchParams<{
-    seriesId: string;
-    episodeId: string;
-    episodeNumber: string;
-  }>();
-  const series = catalogue.series(seriesId);
-  const episode = catalogue.episodes(seriesId).find((e) => e.id === episodeId);
+  // Typed routes only know the path; the search params arrive as strings or not at all.
+  const { seriesId, episodeId, episodeNumber }: Params = useLocalSearchParams<Record<keyof Params, string>>();
+  const series = seriesId ? catalogue.series(seriesId) : undefined;
+  const episode = series ? catalogue.episodes(series.id).find((e) => e.id === episodeId) : undefined;
   const [option, setOption] = useState<Option>('season');
   const coins = useAppStore((s) => s.coins);
   const unlockEpisode = useAppStore((s) => s.unlockEpisode);
   const unlockSeason = useAppStore((s) => s.unlockSeason);
   const subscribePremium = useAppStore((s) => s.subscribePremium);
 
-  const epNo = Number(episodeNumber) || episode?.number || 1;
-  const lastEp = series?.episodeCount ?? 45;
+  if (!series || !episode) {
+    router.back();
+    return null;
+  }
+
+  const epNo = Number(episodeNumber) || episode.number;
 
   function confirm() {
-    let result: 'ok' | 'insufficient' = 'ok';
-    if (option === 'episode') result = unlockEpisode(episodeId);
-    else if (option === 'season') result = unlockSeason(seriesId);
-    else subscribePremium();
-
+    if (!series || !episode) return;
+    if (option === 'premium') {
+      subscribePremium(); // mock: no purchase behind it
+      router.back();
+      return;
+    }
+    const result = option === 'episode' ? unlockEpisode(episode.id) : unlockSeason(series.id);
     if (result === 'insufficient') {
-      const need = option === 'episode' ? UNLOCK_PRICES.episode : UNLOCK_PRICES.season;
-      router.replace({ pathname: '/shop', params: { seriesId, episodeId, episodeNumber, need: String(need) } });
+      router.replace({
+        pathname: '/shop',
+        params: { seriesId: series.id, episodeId: episode.id, episodeNumber: String(epNo), intent: option },
+      });
       return;
     }
     router.back();
@@ -48,18 +60,22 @@ export default function UnlockScreen() {
   return (
     <View style={styles.backdrop}>
       <Animated.View entering={FadeIn.duration(200)} style={StyleSheet.absoluteFill}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} accessibilityLabel="Maybe later" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Maybe later" />
       </Animated.View>
       <Animated.View entering={FadeInDown.duration(220).easing(Easing.out(Easing.quad))} style={styles.sheet}>
         <View style={styles.thumbWrap}>
-          {episode ? <Image source={episode.art} style={styles.thumb} contentFit="cover" /> : null}
+          <Image source={episode.art} style={styles.thumb} contentFit="cover" />
           <View style={styles.thumbDim} />
           <View style={styles.thumbLock}>
             <Ionicons name="lock-closed" size={22} color={colors.white} />
-            <Text style={styles.lockedText}>LOCKED</Text>
+            <Text variant="badge" color={colors.white} style={styles.lockedText}>
+              LOCKED
+            </Text>
           </View>
         </View>
-        <Text style={styles.kicker}>EPISODE {epNo}</Text>
+        <Text variant="overline" color={colors.cyan} style={styles.kicker}>
+          EPISODE {epNo}
+        </Text>
         <Text variant="title" style={styles.title}>
           Continue the romance
         </Text>
@@ -67,24 +83,24 @@ export default function UnlockScreen() {
           Unlock all episodes and discover what happens next in their journey.
         </Text>
 
-        <View style={styles.options}>
+        <View style={styles.options} accessibilityRole="radiogroup">
           <OptionRow
-            selected={option === 'episode'}
+            checked={option === 'episode'}
             onPress={() => setOption('episode')}
             title="Unlock Episode"
             subtitle="One-time access"
             price={`${UNLOCK_PRICES.episode} Coins`}
           />
           <OptionRow
-            selected={option === 'season'}
+            checked={option === 'season'}
             onPress={() => setOption('season')}
             title="Unlock Full Season"
-            subtitle={`Episodes ${epNo} - ${lastEp}`}
+            subtitle={`Episodes ${epNo} - ${series.episodeCount}`}
             price={`${UNLOCK_PRICES.season} Coins`}
             badge="BEST VALUE"
           />
           <OptionRow
-            selected={option === 'premium'}
+            checked={option === 'premium'}
             onPress={() => setOption('premium')}
             title="Premium Membership"
             subtitle="Unlimited access"
@@ -94,7 +110,7 @@ export default function UnlockScreen() {
 
         <Pressable style={styles.cta} onPress={confirm} accessibilityRole="button">
           <Ionicons name="lock-open-outline" size={18} color={colors.black} />
-          <Text style={styles.ctaText}>Unlock Now</Text>
+          <Text variant="button">Unlock Now</Text>
         </Pressable>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.later} accessibilityRole="button">
           <Text color={colors.textSoft}>Maybe Later</Text>
@@ -108,14 +124,14 @@ export default function UnlockScreen() {
 }
 
 function OptionRow({
-  selected,
+  checked,
   onPress,
   title,
   subtitle,
   price,
   badge,
 }: {
-  selected: boolean;
+  checked: boolean;
   onPress: () => void;
   title: string;
   subtitle: string;
@@ -125,26 +141,25 @@ function OptionRow({
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.option, selected && styles.optionSelected]}
+      style={[styles.option, checked && styles.optionChecked]}
       accessibilityRole="radio"
-      accessibilityState={{ selected }}>
-      <View style={[styles.radio, selected && styles.radioSelected]}>
-        {selected ? <Ionicons name="checkmark" size={12} color={colors.black} /> : null}
+      accessibilityState={{ checked }}
+      accessibilityLabel={`${title}, ${price}`}>
+      <View style={[styles.radio, checked && styles.radioChecked]}>
+        {checked ? <Ionicons name="checkmark" size={12} color={colors.black} /> : null}
       </View>
       <View style={{ flex: 1 }}>
         <Text variant="bodyMedium" style={{ fontSize: 15 }}>
           {title}
         </Text>
-        <Text variant="caption" color={colors.textFaint}>
-          {subtitle}
-        </Text>
+        <Text variant="caption">{subtitle}</Text>
       </View>
-      <Text variant="label" color={selected ? colors.cyan : colors.text} style={{ fontSize: 14 }}>
+      <Text variant="label" color={checked ? colors.cyan : colors.text} style={{ fontSize: 14 }}>
         {price}
       </Text>
       {badge ? (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badge}</Text>
+          <Text variant="badge">{badge}</Text>
         </View>
       ) : null}
     </Pressable>
@@ -152,21 +167,21 @@ function OptionRow({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: space.lg },
+  backdrop: { flex: 1, backgroundColor: scrim(0.6), justifyContent: 'center', padding: space.lg },
   sheet: {
-    backgroundColor: '#15173A',
+    backgroundColor: colors.sheet,
     borderRadius: radius.xl,
     padding: space.xl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: scrim(0.06, true),
   },
   thumbWrap: { width: 110, height: 140, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.card },
   thumb: { width: '100%', height: '100%' },
-  thumbDim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.5)' },
+  thumbDim: { ...StyleSheet.absoluteFill, backgroundColor: scrim(0.5) },
   thumbLock: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  lockedText: { fontFamily: fonts.bodySemi, fontSize: 10, color: colors.white, letterSpacing: 1 },
-  kicker: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.cyan, letterSpacing: 1.5, marginTop: space.lg },
+  lockedText: { fontSize: 10, letterSpacing: 1 },
+  kicker: { marginTop: space.lg },
   title: { marginTop: 4 },
   lede: { textAlign: 'center', marginTop: 6, maxWidth: 280 },
   options: { alignSelf: 'stretch', gap: space.sm, marginTop: space.xl },
@@ -176,11 +191,11 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 14,
     borderRadius: radius.md,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: scrim(0.25),
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  optionSelected: { borderColor: colors.cyan, backgroundColor: 'rgba(100,237,247,0.08)' },
+  optionChecked: { borderColor: colors.cyan, backgroundColor: 'rgba(100,237,247,0.08)' },
   radio: {
     width: 20,
     height: 20,
@@ -190,7 +205,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  radioSelected: { backgroundColor: colors.cyan, borderColor: colors.cyan },
+  radioChecked: { backgroundColor: colors.cyan, borderColor: colors.cyan },
   badge: {
     position: 'absolute',
     top: -10,
@@ -200,7 +215,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
-  badgeText: { fontFamily: fonts.bodyBold, fontSize: 9, color: colors.black, letterSpacing: 0.3 },
   cta: {
     alignSelf: 'stretch',
     height: 52,
@@ -212,7 +226,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  ctaText: { fontFamily: fonts.bodySemi, fontSize: 16, color: colors.black },
   later: { marginTop: space.md },
   balance: { marginTop: space.md },
 });

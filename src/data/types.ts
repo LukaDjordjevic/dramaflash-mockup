@@ -21,7 +21,7 @@ export interface Series {
   keyArt?: Artwork;
   synopsis?: string;
   cast?: CastMember[];
-  /** Episodes with real media. Series without a list get generated stubs. */
+  /** Hand-written episodes. Series without a list get generated ones (see services/catalogue). */
   episodes?: Episode[];
   /** Index (0-based) of the first episode that needs unlocking. */
   firstLockedIndex: number;
@@ -40,10 +40,10 @@ export interface Episode {
   title: string;
   durationSec: number;
   thumb: Artwork;
-  /** Full-bleed art shown behind the player / lock card. */
+  /** Full-bleed art shown behind the player until the first frame, and behind the lock. */
   art: Artwork;
-  /** Bundled clip, a `require()` asset id. Locked episodes have none in the mock. */
-  clip?: number;
+  /** Bundled clip, a `require()` asset id. Every episode in the mock has one; locked ones play it once unlocked. */
+  clip: number;
   likes: number;
   comments: number;
 }
@@ -68,3 +68,6 @@ export const UNLOCK_PRICES = {
   season: 150,
   premiumMonthlyUsd: 9.99,
 } as const;
+
+/** What the unlock sheet asked for; carried to the shop when the balance is short. */
+export type UnlockIntent = 'episode' | 'season';

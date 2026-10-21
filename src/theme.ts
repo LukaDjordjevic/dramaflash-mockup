@@ -3,13 +3,18 @@ export const colors = {
   bg: '#000000',
   bgFeed: '#061532',
   card: '#18172B',
-  cardAlt: '#1E1D35',
   cardBorder: '#2A2945',
+  /** The unlock sheet's panel. */
+  sheet: '#15173A',
+  /** A selected coin pack. */
+  packSelected: '#0F1F2A',
+  /** The lock card on the feed. */
+  lockCard: 'rgba(11,27,64,0.9)',
+  /** Sticky footer on the shop. */
+  footer: 'rgba(10,10,24,0.96)',
   cyan: '#64EDF7',
   cyanDeep: '#34E8F4',
   purple: '#CB64F7',
-  purpleDeep: '#B934F4',
-  teal: '#044449',
   gold: '#FACC15',
   text: '#F3F4F6',
   textSoft: '#D1D5DB',
@@ -19,9 +24,20 @@ export const colors = {
   white: '#FFFFFF',
 } as const;
 
+/** Two-stop gradients used as card backgrounds. */
+export const gradients = {
+  brand: [colors.cyan, colors.purple] as const,
+  popular: [colors.cyan, colors.cyanDeep] as const,
+  bestValue: [colors.purple, colors.cyan] as const,
+  profileCard: ['#1B1A38', '#1E1538'] as const,
+  seasonBundle: ['#2A1B4D', '#1C1B3A'] as const,
+};
+
+/** Black / white scrims over imagery. Alpha as a fraction. */
+export const scrim = (alpha: number, white = false) => `rgba(${white ? '255,255,255' : '0,0,0'},${alpha})`;
+
 export const fonts = {
   display: 'PlayfairDisplay_700Bold',
-  displayMedium: 'PlayfairDisplay_600SemiBold',
   body: 'Inter_400Regular',
   bodyMedium: 'Inter_500Medium',
   bodySemi: 'Inter_600SemiBold',
