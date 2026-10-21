@@ -57,8 +57,10 @@ Screenshot: `xcrun simctl io booted screenshot out.png`.
 1. Home: scroll the rails, tap a genre chip, tap "Jetzt ansehen".
 2. Player: episode plays; tap to pause; swipe up to episode 2, then 3.
 3. Let episode 3 end: last frame freezes, "Unlock Episode 4" slides in.
-4. Tap it: the sheet. Pick "Unlock Episode", Unlock Now — balance 15 → 5,
-   episode 4 plays.
+4. Tap it: the sheet. "Unlock Full Season" is pre-checked, as in the design,
+   and the button says what it will do. Pick "Unlock Episode" and tap
+   "Unlock Episode for 10 Coins" — balance 15 → 5, episode 4 plays and 5 stays
+   locked.
 5. Swipe to episode 5 (locked), tap the lock, pick "Unlock Full Season" —
    balance short, shop opens with "Full season • Locked"; Buy 800 Coins;
    back in the player, episode 5 plays and 6 is open.

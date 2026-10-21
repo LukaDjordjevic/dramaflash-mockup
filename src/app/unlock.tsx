@@ -13,6 +13,12 @@ import { colors, radius, scrim, space } from '@/theme';
 
 type Option = UnlockIntent | 'premium';
 
+const ctaLabel: Record<Option, string> = {
+  episode: `Unlock Episode for ${UNLOCK_PRICES.episode} Coins`,
+  season: `Unlock Season for ${UNLOCK_PRICES.season} Coins`,
+  premium: `Subscribe for $${UNLOCK_PRICES.premiumMonthlyUsd}/mo`,
+};
+
 /** Route params. All three are needed; a bare deep link closes the sheet. */
 interface Params {
   seriesId?: string;
@@ -108,9 +114,11 @@ export default function UnlockScreen() {
           />
         </View>
 
+        {/* The button names the checked option: "Full Season" is pre-checked as in the
+            design, and a tap must not read as a single-episode unlock. */}
         <Pressable style={styles.cta} onPress={confirm} accessibilityRole="button">
           <Ionicons name="lock-open-outline" size={18} color={colors.black} />
-          <Text variant="button">Unlock Now</Text>
+          <Text variant="button">{ctaLabel[option]}</Text>
         </Pressable>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.later} accessibilityRole="button">
           <Text color={colors.textSoft}>Maybe Later</Text>

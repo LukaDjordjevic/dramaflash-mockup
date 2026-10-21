@@ -41,3 +41,22 @@ describe('catalogue fixtures', () => {
     for (const row of rows) expect(row.series.id).toBe(row.seriesId);
   });
 });
+
+describe('lock state after unlocks', () => {
+  const s = catalogue.series('billionaires-secret')!;
+  const none = { premium: false, unlockedEpisodes: new Set<string>(), unlockedSeasons: new Set<string>() };
+
+  it('locks 4–6 with no entitlements', () => {
+    expect([...catalogue.lockedEpisodeIds(s, none)]).toEqual(['bs-4', 'bs-5', 'bs-6']);
+  });
+
+  it('unlocking one episode leaves the others locked', () => {
+    const e = { ...none, unlockedEpisodes: new Set(['bs-4']) };
+    expect([...catalogue.lockedEpisodeIds(s, e)]).toEqual(['bs-5', 'bs-6']);
+  });
+
+  it('a season unlock or premium opens everything', () => {
+    expect(catalogue.lockedEpisodeIds(s, { ...none, unlockedSeasons: new Set(['billionaires-secret']) }).size).toBe(0);
+    expect(catalogue.lockedEpisodeIds(s, { ...none, premium: true }).size).toBe(0);
+  });
+});

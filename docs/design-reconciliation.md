@@ -30,6 +30,9 @@ each frame became.
   card on a locked episode (frame 9) and as the slide-in card when a free
   episode ends on the cliffhanger (the task's ask).
 - **Unlock route:** coins. Rewarded ads appear nowhere in the design.
+- **Sheet default:** "Unlock Full Season" is pre-checked as drawn (BEST
+  VALUE). Because that makes a reflex tap unlock everything, the button names
+  the checked option and price instead of a bare "Unlock Now".
 - **Episode lock rule:** 1–3 free, 4+ locked, from frames 3 and 9.
 - **Currency:** EUR in the shop (frame 4), USD on the premium line of the
   sheet (frame 8) — kept as drawn so the inconsistency is visible to the team.
