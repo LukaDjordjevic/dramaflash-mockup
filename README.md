@@ -76,6 +76,15 @@ Catalogue fixtures in `src/data/catalogue.ts`. Four short Pexels clips bundled
 as "episodes" (see `CREDITS.md`). Wallet state is in memory and resets on
 reload. Discover, Romance and Profile tabs are stubs.
 
+## For the next engineer (or agent)
+
+`CLAUDE.md` is the project context: tree, commands, conventions, the SDK
+gotchas already hit, and what is out of scope. `docs/` holds the
+[architecture](docs/architecture.md) (the three seams and the player
+lifecycle), the [design reconciliation](docs/design-reconciliation.md)
+(frame by frame), the [testing recipe](docs/testing.md) (deep links to every
+screen) and the [decision log](docs/decisions.md).
+
 ## How it was built
 
 Expo SDK 58, TypeScript strict, Expo Router, expo-video, expo-image, Zustand,
