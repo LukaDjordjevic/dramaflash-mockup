@@ -42,6 +42,10 @@ and nothing else changes.
   `LockCard` with `emphasis` (slide-in). If the next episode is free, the
   parent scrolls to it. If it becomes free later (unlock from the sheet), an
   effect calls `onEnded` again and the list advances.
+- The poster `Image` under the `VideoView` is removed once `onFirstFrameRender`
+  fires. It is only a placeholder, and it is what flashed on the way back to
+  series detail: the native stack snapshots the outgoing screen for the fade,
+  the video layer is not captured, and the poster behind it showed for a frame.
 - `ended` resets when the card goes inactive, via the derive-during-render
   pattern (`wasActive` state), so swiping back replays from the start.
 

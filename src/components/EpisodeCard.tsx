@@ -43,6 +43,10 @@ function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, 
     currentOffsetFromLive: null,
   });
   const [ended, setEnded] = useState(false);
+  // Once the video has drawn a frame the poster underneath is dead weight — and it
+  // is what flashes when the native stack snapshots this screen on the way out
+  // (the video layer is not captured by the snapshot, the poster behind it is).
+  const [hasFrame, setHasFrame] = useState(false);
   // Reset "ended" when the card scrolls out, so it replays from the start next time.
   const [wasActive, setWasActive] = useState(active);
   if (active !== wasActive) {
@@ -73,7 +77,7 @@ function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, 
 
   return (
     <View style={[styles.card, { height }]}>
-      <Image source={episode.art} style={StyleSheet.absoluteFill} contentFit="cover" />
+      {!source || !hasFrame ? <Image source={episode.art} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
       {source ? (
         <VideoView
           player={player}
@@ -81,6 +85,7 @@ function PlayingEpisode({ series, episode, height, active, nextLocked, onEnded, 
           contentFit="cover"
           nativeControls={false}
           allowsPictureInPicture={false}
+          onFirstFrameRender={() => setHasFrame(true)}
         />
       ) : null}
       <Pressable
@@ -190,7 +195,7 @@ export function mmss(sec: number) {
 }
 
 const styles = StyleSheet.create({
-  card: { width: '100%', backgroundColor: colors.bgFeed, overflow: 'hidden' },
+  card: { width: '100%', backgroundColor: colors.black, overflow: 'hidden' },
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(6,21,50,0.45)' },
   bottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '40%' },
   pausedBadge: {

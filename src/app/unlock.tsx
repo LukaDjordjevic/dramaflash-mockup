@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { Text } from '@/components/Text';
 import { UNLOCK_PRICES } from '@/data/types';
@@ -50,7 +50,7 @@ export default function UnlockScreen() {
       <Animated.View entering={FadeIn.duration(200)} style={StyleSheet.absoluteFill}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} accessibilityLabel="Maybe later" />
       </Animated.View>
-      <Animated.View entering={SlideInDown.springify().damping(18)} style={styles.sheet}>
+      <Animated.View entering={FadeInDown.duration(220).easing(Easing.out(Easing.quad))} style={styles.sheet}>
         <View style={styles.thumbWrap}>
           {episode ? <Image source={episode.art} style={styles.thumb} contentFit="cover" /> : null}
           <View style={styles.thumbDim} />

@@ -76,6 +76,9 @@ docs/                  architecture, design reconciliation, testing, decisions
 - The React Compiler lint rejects mutating hook return values in effects
   (wrap in a helper), `setState` inside effects (derive during render), and
   `useRef(...).current` read during render (use `useCallback`).
+- Anything drawn under a `VideoView` shows for a frame when the screen is
+  popped (the stack snapshot does not include the video layer). Keep the layer
+  under a playing video empty.
 - A Fast Refresh after editing a route file once threw "Cannot find native
   module 'ExpoAsset'" in Expo Go. Cold-restart the app; it is not a code bug.
 
